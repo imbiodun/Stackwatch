@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Alert, Button, Spinner, Table } from 'react-bootstrap'
+import { useEffect, useMemo, useState } from 'react'
+import { Alert, Button, Form, Spinner, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import { getMarkets } from '../api'
 
@@ -38,6 +38,8 @@ function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sort, setSort] = useState({ field: null, direction: 'asc' })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -73,6 +75,50 @@ function DashboardPage() {
     setRetryCount((count) => count + 1)
   }
 
+  function handleSort(field) {
+    setSort((currentSort) => ({
+      field,
+      direction:
+        currentSort.field === field && currentSort.direction === 'asc'
+          ? 'desc'
+          : 'asc',
+    }))
+  }
+
+  const visibleCoins = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    const filteredCoins = coins.filter((coin) => {
+      const name = typeof coin.name === 'string' ? coin.name : ''
+      const symbol = typeof coin.symbol === 'string' ? coin.symbol : ''
+
+      return (
+        !normalizedSearch ||
+        name.toLowerCase().includes(normalizedSearch) ||
+        symbol.toLowerCase().includes(normalizedSearch)
+      )
+    })
+
+    if (!sort.field) {
+      return filteredCoins
+    }
+
+    return [...filteredCoins].sort((firstCoin, secondCoin) => {
+      const firstValue = firstCoin[sort.field] ?? 0
+      const secondValue = secondCoin[sort.field] ?? 0
+      const comparison = firstValue - secondValue
+
+      return sort.direction === 'asc' ? comparison : -comparison
+    })
+  }, [coins, searchTerm, sort])
+
+  function sortLabel(field, label) {
+    if (sort.field !== field) {
+      return label
+    }
+
+    return `${label} ${sort.direction === 'asc' ? '^' : 'v'}`
+  }
+
   return (
     <main className="container py-5">
       <h1>Market dashboard</h1>
@@ -96,49 +142,82 @@ function DashboardPage() {
         <Alert variant="info">No market data is available right now.</Alert>
       )}
       {!isLoading && !error && coins.length > 0 && (
-        <Table responsive hover>
-          <thead>
-            <tr>
-              <th scope="col">#</th>
-              <th scope="col">Coin</th>
-              <th scope="col">Price</th>
-              <th scope="col">24h change</th>
-              <th scope="col">Market cap</th>
-            </tr>
-          </thead>
-          <tbody>
-            {coins.map((coin) => (
-              <tr key={coin.id}>
-                <td>{coin.market_cap_rank}</td>
-                <td>
-                  <Link to={`/coin/${coin.id}`}>
-                    <img
-                      src={coin.image}
-                      alt=""
-                      width="24"
-                      height="24"
-                      className="me-2"
-                    />
-                    {coin.name} ({coin.symbol.toUpperCase()})
-                  </Link>
-                </td>
-                <td>{formatCurrency(coin.current_price)}</td>
-                <td
-                  className={
-                    coin.price_change_percentage_24h > 0
-                      ? 'text-success'
-                      : coin.price_change_percentage_24h < 0
-                        ? 'text-danger'
-                        : 'text-body-secondary'
-                  }
-                >
-                  {formatPercentage(coin.price_change_percentage_24h)}
-                </td>
-                <td>{formatMarketCap(coin.market_cap)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <>
+          <Form.Group className="mb-3" controlId="market-search">
+            <Form.Label>Search coins</Form.Label>
+            <Form.Control
+              type="search"
+              placeholder="Search by name or symbol"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </Form.Group>
+          {visibleCoins.length === 0 ? (
+            <Alert variant="info">
+              No coins match “{searchTerm}”. Try another search.
+            </Alert>
+          ) : (
+            <Table responsive hover>
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Coin</th>
+                  <th scope="col">
+                    <Button
+                      variant="link"
+                      className="p-0 text-body fw-semibold text-decoration-none"
+                      onClick={() => handleSort('current_price')}
+                    >
+                      {sortLabel('current_price', 'Price')}
+                    </Button>
+                  </th>
+                  <th scope="col">24h change</th>
+                  <th scope="col">
+                    <Button
+                      variant="link"
+                      className="p-0 text-body fw-semibold text-decoration-none"
+                      onClick={() => handleSort('market_cap')}
+                    >
+                      {sortLabel('market_cap', 'Market cap')}
+                    </Button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleCoins.map((coin) => (
+                  <tr key={coin.id}>
+                    <td>{coin.market_cap_rank}</td>
+                    <td>
+                      <Link to={`/coin/${coin.id}`}>
+                        <img
+                          src={coin.image}
+                          alt=""
+                          width="24"
+                          height="24"
+                          className="me-2"
+                        />
+                        {coin.name} ({coin.symbol.toUpperCase()})
+                      </Link>
+                    </td>
+                    <td>{formatCurrency(coin.current_price)}</td>
+                    <td
+                      className={
+                        coin.price_change_percentage_24h > 0
+                          ? 'text-success'
+                          : coin.price_change_percentage_24h < 0
+                            ? 'text-danger'
+                            : 'text-body-secondary'
+                      }
+                    >
+                      {formatPercentage(coin.price_change_percentage_24h)}
+                    </td>
+                    <td>{formatMarketCap(coin.market_cap)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </>
       )}
     </main>
   )
