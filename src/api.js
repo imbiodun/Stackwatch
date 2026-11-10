@@ -66,6 +66,16 @@ export function getMarkets(signal) {
   return request(`/coins/markets?${query}`, signal)
 }
 
+export function getMarketPrices(coinIds, currency = 'usd', signal) {
+  const query = new URLSearchParams({
+    vs_currency: currency,
+    ids: coinIds.join(','),
+    sparkline: 'false',
+  })
+
+  return request(`/coins/markets?${query}`, signal)
+}
+
 export function getCoinDetails(coinId, signal) {
   return request(`/coins/${encodeURIComponent(coinId)}`, signal)
 }

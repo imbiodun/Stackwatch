@@ -73,8 +73,8 @@ function CoinDetailPage() {
   const [chartError, setChartError] = useState(null)
   const [chartRange, setChartRange] = useState(30)
   const [currency, setCurrency] = useState('usd')
-  const [amount, setAmount] = useState('')
-  const [buyPrice, setBuyPrice] = useState('')
+  const [investmentAmount, setInvestmentAmount] = useState('')
+  const [cryptoAmount, setCryptoAmount] = useState('')
   const [formError, setFormError] = useState('')
   const { addHolding } = usePortfolio()
 
@@ -161,16 +161,16 @@ function CoinDetailPage() {
 
   function handleAddHolding(event) {
     event.preventDefault()
-    const parsedAmount = Number(amount)
-    const parsedBuyPrice = Number(buyPrice)
+    const parsedInvestment = Number(investmentAmount)
+    const parsedCryptoAmount = Number(cryptoAmount)
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setFormError('Enter an amount greater than zero.')
+    if (!Number.isFinite(parsedInvestment) || parsedInvestment <= 0) {
+      setFormError('Enter an investment or crypto amount greater than zero.')
       return
     }
 
-    if (!Number.isFinite(parsedBuyPrice) || parsedBuyPrice <= 0) {
-      setFormError('Enter a buy price greater than zero.')
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+      setFormError('The current price is unavailable. Try again shortly.')
       return
     }
 
@@ -180,18 +180,19 @@ function CoinDetailPage() {
         coinName: coin.name,
         symbol: coin.symbol,
         image: coin.image?.small,
-        amount: parsedAmount,
-        buyPrice: parsedBuyPrice,
+        amount: parsedCryptoAmount,
+        buyPrice: currentPrice,
         currency,
       })
-      setAmount('')
-      setBuyPrice('')
+      setInvestmentAmount('')
+      setCryptoAmount('')
       setFormError('')
       toast.success(`${coin.name} was added to your portfolio.`)
     } catch (saveError) {
       setFormError(saveError.message)
       toast.error('The holding could not be saved.')
     }
+
   }
 
   const marketData = coin?.market_data
@@ -209,6 +210,32 @@ function CoinDetailPage() {
       : chartDirection === 'down'
         ? '#dc3545'
         : '#0d6efd'
+
+  function handleInvestmentChange(event) {
+    const value = event.target.value
+    setInvestmentAmount(value)
+
+    const parsedValue = Number(value)
+    if (value === '' || !Number.isFinite(parsedValue) || currentPrice <= 0) {
+      setCryptoAmount('')
+      return
+    }
+
+    setCryptoAmount(String(parsedValue / currentPrice))
+  }
+
+  function handleCryptoAmountChange(event) {
+    const value = event.target.value
+    setCryptoAmount(value)
+
+    const parsedValue = Number(value)
+    if (value === '' || !Number.isFinite(parsedValue) || currentPrice <= 0) {
+      setInvestmentAmount('')
+      return
+    }
+
+    setInvestmentAmount(String(parsedValue * currentPrice))
+  }
 
   return (
     <main className="container py-5">
@@ -322,31 +349,40 @@ function CoinDetailPage() {
                 <Row className="g-3 align-items-end">
                   <Col xs={12} md={4}>
                     <Form.Group controlId="holding-amount">
-                      <Form.Label>Amount held</Form.Label>
+                      <Form.Label>Investment amount ({currency.toUpperCase()})</Form.Label>
                       <Form.Control
                         type="number"
                         min="0"
                         step="any"
-                        value={amount}
-                        onChange={(event) => setAmount(event.target.value)}
-                        placeholder="e.g. 0.5"
+                        value={investmentAmount}
+                        onChange={handleInvestmentChange}
+                        placeholder="e.g. 10"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <Form.Group controlId="holding-crypto-amount">
+                      <Form.Label>Crypto amount</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={cryptoAmount}
+                        onChange={handleCryptoAmountChange}
+                        placeholder="e.g. 0.00015"
                       />
                     </Form.Group>
                   </Col>
                   <Col xs={12} md={4}>
                     <Form.Group controlId="holding-buy-price">
-                      <Form.Label>Buy price ({currency.toUpperCase()})</Form.Label>
+                      <Form.Label>Current price ({currency.toUpperCase()})</Form.Label>
                       <Form.Control
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={buyPrice}
-                        onChange={(event) => setBuyPrice(event.target.value)}
-                        placeholder="e.g. 30000"
+                        value={formatCurrency(currentPrice, currency)}
+                        readOnly
                       />
                     </Form.Group>
                   </Col>
-                  <Col xs={12} md={4}>
+                  <Col xs={12}>
                     <Button type="submit" className="w-100">
                       Add holding
                     </Button>

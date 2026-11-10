@@ -72,9 +72,44 @@ export function PortfolioProvider({ children }) {
     [saveHoldings],
   )
 
+  const sellHolding = useCallback(
+    (holdingId, amount, sellPrice) => {
+      let realizedProfit = 0
+
+      setHoldings((currentHoldings) => {
+        const holding = currentHoldings.find(
+          (currentHolding) => currentHolding.id === holdingId,
+        )
+
+        if (!holding || amount <= 0 || amount > holding.amount) {
+          throw new Error('Enter a valid amount to sell.')
+        }
+
+        realizedProfit = (sellPrice - holding.buyPrice) * amount
+        const remainingAmount = holding.amount - amount
+        const nextHoldings =
+          remainingAmount < Number.EPSILON
+            ? currentHoldings.filter(
+                (currentHolding) => currentHolding.id !== holdingId,
+              )
+            : currentHoldings.map((currentHolding) =>
+                currentHolding.id === holdingId
+                  ? { ...currentHolding, amount: remainingAmount }
+                  : currentHolding,
+              )
+
+        saveHoldings(nextHoldings)
+        return nextHoldings
+      })
+
+      return realizedProfit
+    },
+    [saveHoldings],
+  )
+
   const value = useMemo(
-    () => ({ holdings, addHolding, removeHolding }),
-    [addHolding, holdings, removeHolding],
+    () => ({ holdings, addHolding, removeHolding, sellHolding }),
+    [addHolding, holdings, removeHolding, sellHolding],
   )
 
   return (
