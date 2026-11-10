@@ -20,7 +20,9 @@ import {
 } from 'recharts'
 import { Link, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
+import toast from 'react-hot-toast'
 import { getCoinDetails, getMarketChart } from '../api'
+import { usePortfolio } from '../context/portfolioContext'
 
 const percentageFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -71,6 +73,10 @@ function CoinDetailPage() {
   const [chartError, setChartError] = useState(null)
   const [chartRange, setChartRange] = useState(30)
   const [currency, setCurrency] = useState('usd')
+  const [amount, setAmount] = useState('')
+  const [buyPrice, setBuyPrice] = useState('')
+  const [formError, setFormError] = useState('')
+  const { addHolding } = usePortfolio()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -151,6 +157,41 @@ function CoinDetailPage() {
 
   function handleRetry() {
     setRetryCount((count) => count + 1)
+  }
+
+  function handleAddHolding(event) {
+    event.preventDefault()
+    const parsedAmount = Number(amount)
+    const parsedBuyPrice = Number(buyPrice)
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setFormError('Enter an amount greater than zero.')
+      return
+    }
+
+    if (!Number.isFinite(parsedBuyPrice) || parsedBuyPrice <= 0) {
+      setFormError('Enter a buy price greater than zero.')
+      return
+    }
+
+    try {
+      addHolding({
+        coinId: coin.id,
+        coinName: coin.name,
+        symbol: coin.symbol,
+        image: coin.image?.small,
+        amount: parsedAmount,
+        buyPrice: parsedBuyPrice,
+        currency,
+      })
+      setAmount('')
+      setBuyPrice('')
+      setFormError('')
+      toast.success(`${coin.name} was added to your portfolio.`)
+    } catch (saveError) {
+      setFormError(saveError.message)
+      toast.error('The holding could not be saved.')
+    }
   }
 
   const marketData = coin?.market_data
@@ -274,6 +315,51 @@ function CoinDetailPage() {
               </Card>
             </Col>
           </Row>
+          <Card className="mt-4">
+            <Card.Body>
+              <Card.Title>Add to portfolio</Card.Title>
+              <Form onSubmit={handleAddHolding}>
+                <Row className="g-3 align-items-end">
+                  <Col xs={12} md={4}>
+                    <Form.Group controlId="holding-amount">
+                      <Form.Label>Amount held</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={amount}
+                        onChange={(event) => setAmount(event.target.value)}
+                        placeholder="e.g. 0.5"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <Form.Group controlId="holding-buy-price">
+                      <Form.Label>Buy price ({currency.toUpperCase()})</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={buyPrice}
+                        onChange={(event) => setBuyPrice(event.target.value)}
+                        placeholder="e.g. 30000"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12} md={4}>
+                    <Button type="submit" className="w-100">
+                      Add holding
+                    </Button>
+                  </Col>
+                </Row>
+                {formError && (
+                  <Alert variant="danger" className="mt-3 mb-0">
+                    {formError}
+                  </Alert>
+                )}
+              </Form>
+            </Card.Body>
+          </Card>
           <Card className="mt-4">
             <Card.Body>
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">

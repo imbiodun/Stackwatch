@@ -47,6 +47,7 @@ export function PortfolioProvider({ children }) {
         image: holding.image,
         amount: holding.amount,
         buyPrice: holding.buyPrice,
+        currency: holding.currency,
       }
 
       setHoldings((currentHoldings) => {
