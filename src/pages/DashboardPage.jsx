@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Table } from 'react-bootstrap'
+import { Alert, Button, Spinner, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import { getMarkets } from '../api'
 
@@ -7,6 +7,7 @@ function DashboardPage() {
   const [coins, setCoins] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -34,16 +35,35 @@ function DashboardPage() {
     loadMarkets()
 
     return () => controller.abort()
-  }, [])
+  }, [retryCount])
+
+  function handleRetry() {
+    setError(null)
+    setIsLoading(true)
+    setRetryCount((count) => count + 1)
+  }
 
   return (
     <main className="container py-5">
       <h1>Market dashboard</h1>
       <p className="lead">Top cryptocurrency prices by market capitalization.</p>
-      {isLoading && <p>Loading market data...</p>}
-      {error && <p>Unable to load market data: {error.message}</p>}
+      {isLoading && (
+        <div className="d-flex align-items-center gap-2" role="status">
+          <Spinner animation="border" size="sm" />
+          <span>Loading market data...</span>
+        </div>
+      )}
+      {error && (
+        <Alert variant="danger">
+          <Alert.Heading>Market data unavailable</Alert.Heading>
+          <p>{error.message}</p>
+          <Button variant="outline-danger" onClick={handleRetry}>
+            Try again
+          </Button>
+        </Alert>
+      )}
       {!isLoading && !error && coins.length === 0 && (
-        <p>No market data is available.</p>
+        <Alert variant="info">No market data is available right now.</Alert>
       )}
       {!isLoading && !error && coins.length > 0 && (
         <Table responsive hover>
