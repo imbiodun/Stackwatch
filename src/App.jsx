@@ -1,9 +1,21 @@
+import { HashRouter, Route, Routes } from 'react-router-dom'
+import NavigationBar from './components/NavigationBar'
+import CoinDetailPage from './pages/CoinDetailPage'
+import DashboardPage from './pages/DashboardPage'
+import NotFoundPage from './pages/NotFoundPage'
+import PortfolioPage from './pages/PortfolioPage'
+
 function App() {
   return (
-    <main className="container py-5">
-      <h1>Stackwatch</h1>
-      <p className="lead">Watch the market. Track your stack.</p>
-    </main>
+    <HashRouter>
+      <NavigationBar />
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/coin/:id" element={<CoinDetailPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </HashRouter>
   )
 }
 
