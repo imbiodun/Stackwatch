@@ -38,8 +38,13 @@ async function request(endpoint, signal) {
   }
 
   if (!response.ok) {
+    const message =
+      response.status === 401 || response.status === 403
+        ? 'This chart range requires a CoinGecko Demo API key.'
+        : 'CoinGecko could not load this data right now. Please try again shortly.'
+
     throw new CoinGeckoApiError(
-      `CoinGecko request failed with status ${response.status}.`,
+      message,
       response.status,
     )
   }
@@ -53,9 +58,9 @@ export function getMarkets(signal) {
   const query = new URLSearchParams({
     vs_currency: 'usd',
     order: 'market_cap_desc',
-    per_page: '20',
+    per_page: '250',
     page: '1',
-    sparkline: 'false',
+    sparkline: 'true',
   })
 
   return request(`/coins/markets?${query}`, signal)
@@ -65,11 +70,15 @@ export function getCoinDetails(coinId, signal) {
   return request(`/coins/${encodeURIComponent(coinId)}`, signal)
 }
 
-export function getMarketChart(coinId, days = 30, signal) {
+export function getMarketChart(coinId, days = 30, currency = 'usd', signal) {
   const query = new URLSearchParams({
-    vs_currency: 'usd',
+    vs_currency: currency,
     days: String(days),
   })
+
+  if (days >= 90) {
+    query.set('interval', 'daily')
+  }
 
   return request(
     `/coins/${encodeURIComponent(coinId)}/market_chart?${query}`,

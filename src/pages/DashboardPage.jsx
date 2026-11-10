@@ -36,6 +36,48 @@ function formatPercentage(value) {
     : '—'
 }
 
+function MiniChart({ prices, isPositive, coinId }) {
+  if (!Array.isArray(prices) || prices.length < 2) {
+    return <span className="text-body-secondary">—</span>
+  }
+
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+  const range = max - min || 1
+  const points = prices
+    .map((price, index) => {
+      const x = (index / (prices.length - 1)) * 100
+      const y = 28 - ((price - min) / range) * 24
+      return `${x},${y}`
+    })
+    .join(' ')
+  const color = isPositive ? '#198754' : '#dc3545'
+
+  return (
+    <svg
+      viewBox="0 0 100 32"
+      width="120"
+      height="40"
+      role="img"
+      aria-label={`${coinId} 7-day price trend`}
+    >
+      <polyline
+        points={`${points} 100,32 0,32`}
+        fill={isPositive ? 'rgba(25, 135, 84, 0.12)' : 'rgba(220, 53, 69, 0.12)'}
+        stroke="none"
+      />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function DashboardPage() {
   const [coins, setCoins] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -200,6 +242,7 @@ function DashboardPage() {
                       {sortLabel('market_cap', 'Market cap')}
                     </Button>
                   </th>
+                  <th scope="col">7d trend</th>
                 </tr>
               </thead>
               <tbody>
@@ -231,6 +274,16 @@ function DashboardPage() {
                       {formatPercentage(coin.price_change_percentage_24h)}
                     </td>
                     <td>{formatMarketCap(coin.market_cap)}</td>
+                    <td>
+                      <MiniChart
+                        prices={coin.sparkline_in_7d?.price}
+                        isPositive={
+                          coin.sparkline_in_7d?.price?.at(-1) >=
+                          coin.sparkline_in_7d?.price?.[0]
+                        }
+                        coinId={coin.name}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

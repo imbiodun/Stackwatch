@@ -5,13 +5,14 @@ import {
   ButtonGroup,
   Card,
   Col,
+  Form,
   Row,
   Spinner,
 } from 'react-bootstrap'
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -21,33 +22,36 @@ import { Link, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { getCoinDetails, getMarketChart } from '../api'
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-})
-
-const compactCurrencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  notation: 'compact',
-  maximumFractionDigits: 2,
-})
-
 const percentageFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
 
-const chartRanges = [7, 30, 90]
+const chartRanges = [
+  { value: 365, label: '1 year' },
+  { value: 90, label: '90 days' },
+  { value: 30, label: '30 days' },
+  { value: 7, label: '7 days' },
+]
 
-function formatCurrency(value) {
-  return typeof value === 'number' ? currencyFormatter.format(value) : '—'
-}
+const currencies = [
+  { value: 'usd', label: 'USD' },
+  { value: 'eur', label: 'EUR' },
+  { value: 'gbp', label: 'GBP' },
+  { value: 'jpy', label: 'JPY' },
+]
 
-function formatCompactCurrency(value) {
-  return typeof value === 'number'
-    ? compactCurrencyFormatter.format(value)
-    : '—'
+function formatCurrency(value, currency, compact = false) {
+  if (typeof value !== 'number') {
+    return '—'
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+    notation: compact ? 'compact' : 'standard',
+    maximumFractionDigits: compact ? 2 : undefined,
+  }).format(value)
 }
 
 function formatPercentage(value) {
@@ -66,6 +70,7 @@ function CoinDetailPage() {
   const [chartIsLoading, setChartIsLoading] = useState(true)
   const [chartError, setChartError] = useState(null)
   const [chartRange, setChartRange] = useState(30)
+  const [currency, setCurrency] = useState('usd')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -109,6 +114,7 @@ function CoinDetailPage() {
         const chartResponse = await getMarketChart(
           id,
           chartRange,
+          currency,
           controller.signal,
         )
 
@@ -141,15 +147,27 @@ function CoinDetailPage() {
     loadChart()
 
     return () => controller.abort()
-  }, [chartRange, id, retryCount])
+  }, [chartRange, currency, id, retryCount])
 
   function handleRetry() {
     setRetryCount((count) => count + 1)
   }
 
   const marketData = coin?.market_data
-  const currentPrice = marketData?.current_price?.usd
+  const currentPrice = marketData?.current_price?.[currency]
   const priceChange = marketData?.price_change_percentage_24h
+  const chartDirection =
+    chartData.length > 1
+      ? chartData.at(-1).price >= chartData[0].price
+        ? 'up'
+        : 'down'
+      : 'neutral'
+  const chartColor =
+    chartDirection === 'up'
+      ? '#198754'
+      : chartDirection === 'down'
+        ? '#dc3545'
+        : '#0d6efd'
 
   return (
     <main className="container py-5">
@@ -184,6 +202,19 @@ function CoinDetailPage() {
                 {coin.symbol?.toUpperCase()}
               </p>
             </div>
+            <Form.Select
+              aria-label="Display currency"
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+              className="ms-auto"
+              style={{ maxWidth: '130px' }}
+            >
+              {currencies.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Form.Select>
           </div>
           <Row className="g-3">
             <Col xs={12} md={6}>
@@ -191,7 +222,7 @@ function CoinDetailPage() {
                 <Card.Body>
                   <Card.Title>Current price</Card.Title>
                   <Card.Text className="fs-3">
-                    {formatCurrency(currentPrice)}
+                    {formatCurrency(currentPrice, currency)}
                   </Card.Text>
                   <Card.Text
                     className={
@@ -213,13 +244,31 @@ function CoinDetailPage() {
                   <Card.Title>Market statistics</Card.Title>
                   <dl className="mb-0">
                     <dt>Market cap</dt>
-                    <dd>{formatCompactCurrency(marketData?.market_cap?.usd)}</dd>
+                    <dd>
+                      {formatCurrency(
+                        marketData?.market_cap?.[currency],
+                        currency,
+                        true,
+                      )}
+                    </dd>
                     <dt>24h volume</dt>
                     <dd>
-                      {formatCompactCurrency(marketData?.total_volume?.usd)}
+                      {formatCurrency(
+                        marketData?.total_volume?.[currency],
+                        currency,
+                        true,
+                      )}
                     </dd>
                     <dt>Market cap rank</dt>
                     <dd>{coin.market_cap_rank ?? '—'}</dd>
+                    <dt>All-time high</dt>
+                    <dd>
+                      {formatCurrency(marketData?.ath?.[currency], currency)}
+                    </dd>
+                    <dt>All-time low</dt>
+                    <dd>
+                      {formatCurrency(marketData?.atl?.[currency], currency)}
+                    </dd>
                   </dl>
                 </Card.Body>
               </Card>
@@ -232,11 +281,15 @@ function CoinDetailPage() {
                 <ButtonGroup aria-label="Price history range">
                   {chartRanges.map((range) => (
                     <Button
-                      key={range}
-                      variant={chartRange === range ? 'primary' : 'outline-primary'}
-                      onClick={() => setChartRange(range)}
+                      key={range.value}
+                      variant={
+                        chartRange === range.value
+                          ? 'primary'
+                          : 'outline-primary'
+                      }
+                      onClick={() => setChartRange(range.value)}
                     >
-                      {range} days
+                      {range.label}
                     </Button>
                   ))}
                 </ButtonGroup>
@@ -261,9 +314,29 @@ function CoinDetailPage() {
                 </Alert>
               )}
               {!chartIsLoading && !chartError && chartData.length > 0 && (
-                <div style={{ height: 320 }}>
+                <div style={{ height: 480 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient
+                          id="price-area-gradient"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor={chartColor}
+                            stopOpacity={0.35}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor={chartColor}
+                            stopOpacity={0.02}
+                          />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis
                         dataKey="timestamp"
@@ -272,7 +345,7 @@ function CoinDetailPage() {
                         }
                       />
                       <YAxis
-                        tickFormatter={(price) => formatCurrency(price)}
+                        tickFormatter={(price) => formatCurrency(price, currency)}
                         width={90}
                       />
                       <Tooltip
@@ -280,18 +353,22 @@ function CoinDetailPage() {
                           format(new Date(timestamp), 'MMM d, yyyy h:mm a')
                         }
                         formatter={(price) => [
-                          formatCurrency(price),
+                          formatCurrency(price, currency),
                           'Price',
                         ]}
                       />
-                      <Line
+                      <Area
                         type="monotone"
                         dataKey="price"
-                        stroke="#0d6efd"
+                        stroke={chartColor}
+                        fill="url(#price-area-gradient)"
                         dot={false}
                         strokeWidth={2}
+                        isAnimationActive
+                        animationDuration={1200}
+                        animationEasing="ease-in-out"
                       />
-                    </LineChart>
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               )}
