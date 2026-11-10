@@ -3,6 +3,36 @@ import { Alert, Button, Spinner, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import { getMarkets } from '../api'
 
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+})
+
+const marketCapFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+})
+
+const percentageFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+function formatCurrency(value) {
+  return typeof value === 'number' ? currencyFormatter.format(value) : '—'
+}
+
+function formatMarketCap(value) {
+  return typeof value === 'number' ? marketCapFormatter.format(value) : '—'
+}
+
+function formatPercentage(value) {
+  return typeof value === 'number'
+    ? `${percentageFormatter.format(value)}%`
+    : '—'
+}
+
 function DashboardPage() {
   const [coins, setCoins] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -92,9 +122,19 @@ function DashboardPage() {
                     {coin.name} ({coin.symbol.toUpperCase()})
                   </Link>
                 </td>
-                <td>{coin.current_price}</td>
-                <td>{coin.price_change_percentage_24h}</td>
-                <td>{coin.market_cap}</td>
+                <td>{formatCurrency(coin.current_price)}</td>
+                <td
+                  className={
+                    coin.price_change_percentage_24h > 0
+                      ? 'text-success'
+                      : coin.price_change_percentage_24h < 0
+                        ? 'text-danger'
+                        : 'text-body-secondary'
+                  }
+                >
+                  {formatPercentage(coin.price_change_percentage_24h)}
+                </td>
+                <td>{formatMarketCap(coin.market_cap)}</td>
               </tr>
             ))}
           </tbody>
