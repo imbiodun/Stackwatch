@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { format } from 'date-fns'
 import { Alert, Button, Form, Spinner, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import { getMarkets } from '../api'
@@ -19,6 +20,8 @@ const percentageFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 })
 
+const REFRESH_INTERVAL_MS = 60 * 1000
+
 function formatCurrency(value) {
   return typeof value === 'number' ? currencyFormatter.format(value) : '—'
 }
@@ -37,6 +40,7 @@ function DashboardPage() {
   const [coins, setCoins] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
   const [retryCount, setRetryCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [sort, setSort] = useState({ field: null, direction: 'asc' })
@@ -44,7 +48,11 @@ function DashboardPage() {
   useEffect(() => {
     const controller = new AbortController()
 
-    async function loadMarkets() {
+    async function loadMarkets(showLoading = false) {
+      if (showLoading) {
+        setIsLoading(true)
+      }
+
       try {
         const marketData = await getMarkets(controller.signal)
 
@@ -53,6 +61,8 @@ function DashboardPage() {
         }
 
         setCoins(marketData)
+        setLastUpdated(new Date())
+        setError(null)
       } catch (requestError) {
         if (requestError.name !== 'AbortError') {
           setError(requestError)
@@ -64,9 +74,13 @@ function DashboardPage() {
       }
     }
 
-    loadMarkets()
+    loadMarkets(true)
+    const refreshInterval = setInterval(() => loadMarkets(), REFRESH_INTERVAL_MS)
 
-    return () => controller.abort()
+    return () => {
+      controller.abort()
+      clearInterval(refreshInterval)
+    }
   }, [retryCount])
 
   function handleRetry() {
@@ -123,6 +137,11 @@ function DashboardPage() {
     <main className="container py-5">
       <h1>Market dashboard</h1>
       <p className="lead">Top cryptocurrency prices by market capitalization.</p>
+      {lastUpdated && (
+        <p className="text-body-secondary">
+          Last updated: {format(lastUpdated, 'MMM d, yyyy h:mm:ss a')}
+        </p>
+      )}
       {isLoading && (
         <div className="d-flex align-items-center gap-2" role="status">
           <Spinner animation="border" size="sm" />
