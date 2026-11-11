@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Form, Spinner, Table } from 'react-bootstrap'
+import { Alert, Button, Form, Spinner } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -40,6 +40,7 @@ function PortfolioPage() {
   const [displayCurrency, setDisplayCurrency] = useState('usd')
   const [sellingId, setSellingId] = useState(null)
   const [sellAmount, setSellAmount] = useState('')
+  const [activeAllocationIndex, setActiveAllocationIndex] = useState(null)
 
   useEffect(() => {
     if (holdings.length === 0) {
@@ -197,25 +198,33 @@ function PortfolioPage() {
 
   return (
     <main className="container py-5">
-      <h1>Portfolio simulator</h1>
-      <p className="lead">Track your simulated cryptocurrency holdings.</p>
-      <Form.Group controlId="portfolio-currency" className="mb-4">
-        <Form.Label>Display portfolio values in</Form.Label>
-        <Form.Select
-          value={displayCurrency}
-          onChange={(event) => {
-            setDisplayCurrency(event.target.value)
-            setIsLoading(true)
-          }}
-          style={{ maxWidth: '180px' }}
-        >
-          {currencies.map((currency) => (
-            <option key={currency.value} value={currency.value}>
-              {currency.label}
-            </option>
-          ))}
-        </Form.Select>
-      </Form.Group>
+      <section className="portfolio-intro mb-4">
+        <div className="portfolio-intro-copy">
+          <p className="portfolio-simulator-label">PORTFOLIO SIMULATOR</p>
+          <h1>Portfolio simulator</h1>
+          <p className="lead">Track your simulated cryptocurrency holdings.</p>
+        </div>
+        <div className="portfolio-intro-control">
+          <Form.Group controlId="portfolio-currency">
+            <Form.Label>Display portfolio values in</Form.Label>
+            <Form.Select
+              className="portfolio-currency-select"
+              value={displayCurrency}
+              onChange={(event) => {
+                setDisplayCurrency(event.target.value)
+                setIsLoading(true)
+              }}
+              style={{ maxWidth: '180px' }}
+            >
+              {currencies.map((currency) => (
+                <option key={currency.value} value={currency.value}>
+                  {currency.label}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </div>
+      </section>
       {isLoading && (
         <div className="d-flex align-items-center gap-2" role="status">
           <Spinner animation="border" size="sm" />
@@ -240,8 +249,8 @@ function PortfolioPage() {
             {Object.entries(totalsByCurrency).map(
               ([currency, totals]) => (
                 <div className="col-12 col-md-6" key={currency}>
-                  <div className="card h-100">
-                    <div className="card-body">
+                  <div className="card h-100 portfolio-summary-card">
+                    <div className="card-body portfolio-allocation-body">
                       <h2 className="h5">
                         Portfolio totals ({currency.toUpperCase()})
                       </h2>
@@ -272,25 +281,64 @@ function PortfolioPage() {
             )}
           </div>
           {allocationData.length > 0 && (
-            <div className="card mb-4">
-              <div className="card-body">
-                <h2 className="h5">Portfolio allocation</h2>
-                <div style={{ height: 320 }}>
+            <section className="portfolio-allocation-card mb-4">
+              <div className="card-body portfolio-allocation-body">
+                <div className="portfolio-allocation-header">
+                  <div>
+                    <p className="portfolio-allocation-label">
+                      PORTFOLIO BREAKDOWN
+                    </p>
+                    <h2 className="h5 mb-1">Allocation</h2>
+                    <p className="portfolio-allocation-subtitle mb-0">
+                      Your current holdings by value
+                    </p>
+                  </div>
+                  <strong className="portfolio-allocation-total">
+                    {formatCurrency(
+                      allocationData.reduce(
+                        (total, holding) => total + holding.value,
+                        0,
+                      ),
+                      displayCurrency,
+                    )}
+                  </strong>
+                </div>
+                <div className="portfolio-allocation-chart-wrap">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart
+                      className="portfolio-allocation-chart"
+                      onMouseLeave={() => setActiveAllocationIndex(null)}
+                    >
                       <Pie
                         data={allocationData}
                         dataKey="value"
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        outerRadius="75%"
+                        outerRadius="78%"
                         label
+                        activeIndex={activeAllocationIndex ?? undefined}
                       >
                         {allocationData.map((entry, index) => (
                           <Cell
                             key={`${entry.name}-${index}`}
                             fill={chartColors[index % chartColors.length]}
+                            className="portfolio-allocation-slice"
+                            fillOpacity={
+                              activeAllocationIndex === null ||
+                              activeAllocationIndex === index
+                                ? 1
+                                : 0.45
+                            }
+                            stroke={
+                              activeAllocationIndex === index
+                                ? '#ffffff'
+                                : 'transparent'
+                            }
+                            strokeWidth={activeAllocationIndex === index ? 3 : 1}
+                            onMouseEnter={() =>
+                              setActiveAllocationIndex(index)
+                            }
                           />
                         ))}
                       </Pie>
@@ -304,24 +352,23 @@ function PortfolioPage() {
                   </ResponsiveContainer>
                 </div>
               </div>
-            </div>
+            </section>
           )}
-          <Table responsive hover>
-            <thead>
-              <tr>
-                <th>Coin</th>
-                <th>Amount</th>
-                <th>Buy price</th>
-                <th>Current price</th>
-                <th>Current value</th>
-                <th>Profit / loss</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
+          <div className="portfolio-list-section">
+            <div className="portfolio-list-heading">
+              <h2>Portfolio holdings</h2>
+              <div className="portfolio-list-headings" aria-hidden="true">
+                <span>Holding</span>
+                <span>Amount</span>
+                <span>Buy price</span>
+                <span>Current price</span>
+                <span>Profit / loss</span>
+              </div>
+            </div>
+            <div className="portfolio-list">
               {rows.map((holding) => (
-                <tr key={holding.id}>
-                <td>
+                <article key={holding.id} className="portfolio-row">
+                  <div className="portfolio-row-header">
                   <Link to={`/coin/${holding.coinId}`}>
                     {holding.image && (
                       <img
@@ -334,27 +381,24 @@ function PortfolioPage() {
                     )}
                     {holding.coinName} ({holding.symbol?.toUpperCase()})
                   </Link>
-                </td>
-                <td>{holding.amount}</td>
-                <td>{formatCurrency(holding.buyPrice, holding.currency)}</td>
-                <td>
-                  {formatCurrency(holding.currentPrice, holding.currency)}
-                </td>
-                <td>
-                  {formatCurrency(holding.currentValue, holding.currency)}
-                </td>
-                <td
-                  className={
+                  <strong className="portfolio-row-value">
+                    {formatCurrency(holding.currentValue, holding.currency)}
+                  </strong>
+                  </div>
+                  <div className="portfolio-row-details">
+                    <span><small>Amount</small>{holding.amount}</span>
+                    <span><small>Buy price</small>{formatCurrency(holding.buyPrice, holding.currency)}</span>
+                    <span><small>Current price</small>{formatCurrency(holding.currentPrice, holding.currency)}</span>
+                    <span className={
                     holding.profitLoss > 0
                       ? 'text-success'
-                      : holding.profitLoss < 0
-                        ? 'text-danger'
-                        : 'text-warning'
-                  }
-                >
-                  {formatCurrency(holding.profitLoss, holding.currency)}
-                </td>
-                <td>
+                      : holding.profitLoss < 0 ? 'text-danger' : 'text-warning'
+                    }>
+                      <small>Profit / loss</small>
+                      {formatCurrency(holding.profitLoss, holding.currency)}
+                    </span>
+                  </div>
+                  <div className="portfolio-row-actions">
                   <div className="d-flex flex-wrap gap-2">
                     <Link
                       to={`/coin/${holding.coinId}`}
@@ -401,11 +445,11 @@ function PortfolioPage() {
                       </Button>
                     </div>
                   )}
-                </td>
-                </tr>
+                  </div>
+                </article>
               ))}
-            </tbody>
-          </Table>
+            </div>
+          </div>
         </>
       )}
     </main>

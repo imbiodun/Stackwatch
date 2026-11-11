@@ -12,7 +12,6 @@ import {
 import {
   Area,
   AreaChart,
-  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -239,7 +238,7 @@ function CoinDetailPage() {
 
   return (
     <main className="container py-5">
-      <Link to="/" className="btn btn-link px-0 mb-3">
+      <Link to="/" className="btn btn-outline-primary coin-back-button mb-3">
         Back to market
       </Link>
       {isLoading && (
@@ -262,7 +261,7 @@ function CoinDetailPage() {
       )}
       {!isLoading && !error && coin && (
         <>
-          <div className="d-flex align-items-center gap-3 mb-4">
+          <div className="coin-detail-header d-flex align-items-center gap-3 mb-4">
             <img src={coin.image?.large} alt="" width="64" height="64" />
             <div>
               <h1 className="mb-1">{coin.name}</h1>
@@ -286,20 +285,20 @@ function CoinDetailPage() {
           </div>
           <Row className="g-3">
             <Col xs={12} md={6}>
-              <Card className="h-100">
+              <Card className="h-100 coin-detail-card">
                 <Card.Body>
                   <Card.Title>Current price</Card.Title>
-                  <Card.Text className="fs-3">
+                  <Card.Text className="fs-3 coin-current-price">
                     {formatCurrency(currentPrice, currency)}
                   </Card.Text>
                   <Card.Text
-                    className={
+                    className={`coin-price-change ${
                       priceChange > 0
                         ? 'text-success'
                         : priceChange < 0
                           ? 'text-danger'
                           : 'text-body-secondary'
-                    }
+                    }`}
                   >
                     {formatPercentage(priceChange)} in the last 24 hours
                   </Card.Text>
@@ -307,10 +306,10 @@ function CoinDetailPage() {
               </Card>
             </Col>
             <Col xs={12} md={6}>
-              <Card className="h-100">
+              <Card className="h-100 coin-detail-card">
                 <Card.Body>
                   <Card.Title>Market statistics</Card.Title>
-                  <dl className="mb-0">
+                  <dl className="coin-detail-stats mb-0">
                     <dt>Market cap</dt>
                     <dd>
                       {formatCurrency(
@@ -342,7 +341,7 @@ function CoinDetailPage() {
               </Card>
             </Col>
           </Row>
-          <Card className="mt-4">
+          <Card className="mt-4 coin-detail-card">
             <Card.Body>
               <Card.Title>Add to portfolio</Card.Title>
               <Form onSubmit={handleAddHolding}>
@@ -377,6 +376,7 @@ function CoinDetailPage() {
                     <Form.Group controlId="holding-buy-price">
                       <Form.Label>Current price ({currency.toUpperCase()})</Form.Label>
                       <Form.Control
+                        className="coin-current-price-input"
                         value={formatCurrency(currentPrice, currency)}
                         readOnly
                       />
@@ -396,11 +396,11 @@ function CoinDetailPage() {
               </Form>
             </Card.Body>
           </Card>
-          <Card className="mt-4">
+          <Card className="mt-4 coin-detail-card price-history-card">
             <Card.Body>
-              <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+              <div className="price-history-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                 <Card.Title className="mb-0">Price history</Card.Title>
-                <ButtonGroup aria-label="Price history range">
+                <ButtonGroup className="price-history-ranges" aria-label="Price history range">
                   {chartRanges.map((range) => (
                     <Button
                       key={range.value}
@@ -436,7 +436,7 @@ function CoinDetailPage() {
                 </Alert>
               )}
               {!chartIsLoading && !chartError && chartData.length > 0 && (
-                <div style={{ height: 480 }}>
+                <div className="price-history-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                       <defs>
@@ -459,21 +459,30 @@ function CoinDetailPage() {
                           />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" />
                       <XAxis
                         dataKey="timestamp"
+                        tick={{ fontSize: 10 }}
                         tickFormatter={(timestamp) =>
                           format(new Date(timestamp), 'MMM d')
                         }
                       />
                       <YAxis
+                        tick={{ fontSize: 10 }}
                         tickFormatter={(price) => formatCurrency(price, currency)}
-                        width={90}
+                        width={72}
                       />
                       <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'var(--chart-tooltip-bg)',
+                          border: '1px solid var(--chart-tooltip-border)',
+                          borderRadius: '0.65rem',
+                          color: 'var(--chart-tooltip-text)',
+                        }}
                         labelFormatter={(timestamp) =>
                           format(new Date(timestamp), 'MMM d, yyyy h:mm a')
                         }
+                        labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                        itemStyle={{ color: 'var(--chart-tooltip-text)' }}
                         formatter={(price) => [
                           formatCurrency(price, currency),
                           'Price',

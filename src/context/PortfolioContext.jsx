@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PortfolioContext } from './portfolioContext'
 
 const STORAGE_KEY = 'stackwatch-portfolio'
@@ -18,10 +18,48 @@ function createHoldingId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
 }
 
+function mergeHoldings(holdings) {
+  const merged = []
+  const holdingIndexes = new Map()
+
+  holdings.forEach((holding) => {
+    const key = `${holding.coinId}:${holding.currency || 'usd'}`
+    const existingIndex = holdingIndexes.get(key)
+
+    if (existingIndex === undefined) {
+      holdingIndexes.set(key, merged.length)
+      merged.push({
+        ...holding,
+        currency: holding.currency || 'usd',
+      })
+      return
+    }
+
+    const existing = merged[existingIndex]
+    const existingAmount = Number(existing.amount)
+    const addedAmount = Number(holding.amount)
+    const totalAmount = existingAmount + addedAmount
+    const weightedBuyPrice =
+      totalAmount > 0
+        ? (existingAmount * Number(existing.buyPrice) +
+            addedAmount * Number(holding.buyPrice)) /
+          totalAmount
+        : existing.buyPrice
+
+    merged[existingIndex] = {
+      ...existing,
+      amount: totalAmount,
+      buyPrice: weightedBuyPrice,
+    }
+  })
+
+  return merged
+}
+
 export function PortfolioProvider({ children }) {
   const [holdings, setHoldings] = useState(() => {
     try {
-      return readStoredHoldings()
+      return mergeHoldings(readStoredHoldings())
     } catch (error) {
       console.error('Unable to read the saved portfolio.', error)
       return []
@@ -37,6 +75,14 @@ export function PortfolioProvider({ children }) {
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings))
+    } catch (error) {
+      console.error('Unable to save the normalized portfolio.', error)
+    }
+  }, [holdings])
+
   const addHolding = useCallback(
     (holding) => {
       const nextHolding = {
@@ -51,7 +97,7 @@ export function PortfolioProvider({ children }) {
       }
 
       setHoldings((currentHoldings) => {
-        const nextHoldings = [...currentHoldings, nextHolding]
+        const nextHoldings = mergeHoldings([...currentHoldings, nextHolding])
         saveHoldings(nextHoldings)
         return nextHoldings
       })

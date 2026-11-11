@@ -86,6 +86,7 @@ function DashboardPage() {
   const [retryCount, setRetryCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [sort, setSort] = useState({ field: null, direction: 'asc' })
+  const [heroCoinId, setHeroCoinId] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -175,10 +176,92 @@ function DashboardPage() {
     return `${label} ${sort.direction === 'asc' ? '^' : 'v'}`
   }
 
+  const heroCoin = coins.find((coin) => coin.id === heroCoinId) || coins[0]
+  const heroChartData = useMemo(
+    () =>
+      (heroCoin?.sparkline_in_7d?.price || []).map((price, index) => ({
+        index,
+        price,
+      })),
+    [heroCoin],
+  )
+
   return (
     <main className="container py-5">
-      <h1>Market dashboard</h1>
-      <p className="lead">Top cryptocurrency prices by market capitalization.</p>
+      <section className="dashboard-hero mb-4">
+        <div className="dashboard-hero-copy">
+          <p className="dashboard-eyebrow">STACKWATCH MARKET</p>
+          <h1>Watch the market.</h1>
+          <p className="lead mb-0">Track your stack.</p>
+        </div>
+        {heroCoin && (
+          <div className="hero-market-card">
+            <div className="hero-market-header">
+              <div>
+                <p className="hero-market-label">LIVE MARKET PULSE</p>
+                <h2>
+                  {heroCoin.name}{' '}
+                  <span>{heroCoin.symbol.toUpperCase()}</span>
+                </h2>
+              </div>
+              <img src={heroCoin.image} alt="" width="42" height="42" />
+            </div>
+            <div className="hero-market-stats">
+              <strong>{formatCurrency(heroCoin.current_price)}</strong>
+              <span
+                className={
+                  heroCoin.price_change_percentage_24h >= 0
+                    ? 'hero-positive'
+                    : 'hero-negative'
+                }
+              >
+                {formatPercentage(heroCoin.price_change_percentage_24h)} 24h
+              </span>
+            </div>
+            <div className="hero-chart" aria-label={`${heroCoin.name} 7-day chart`}>
+              {heroChartData.length > 1 && (
+                <svg viewBox="0 0 400 110" role="img">
+                  <polyline
+                    points={heroChartData
+                      .map((point, index) => {
+                        const prices = heroChartData.map((item) => item.price)
+                        const min = Math.min(...prices)
+                        const max = Math.max(...prices)
+                        const x = (index / (prices.length - 1)) * 400
+                        const y =
+                          92 - ((point.price - min) / (max - min || 1)) * 74
+                        return `${x},${y}`
+                      })
+                      .join(' ')}
+                    fill="none"
+                    stroke={
+                      heroCoin.price_change_percentage_24h >= 0
+                        ? '#75e0a7'
+                        : '#fda29b'
+                    }
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </div>
+            <div className="hero-market-controls">
+              {coins.slice(0, 3).map((coin) => (
+                <Button
+                  key={coin.id}
+                  variant={coin.id === heroCoin.id ? 'light' : 'outline-light'}
+                  size="sm"
+                  onClick={() => setHeroCoinId(coin.id)}
+                >
+                  {coin.symbol.toUpperCase()}
+                </Button>
+              ))}
+              <span>7D trend</span>
+            </div>
+          </div>
+        )}
+      </section>
       {lastUpdated && (
         <p className="text-body-secondary">
           Last updated: {format(lastUpdated, 'MMM d, yyyy h:mm:ss a')}
@@ -218,7 +301,12 @@ function DashboardPage() {
               No coins match “{searchTerm}”. Try another search.
             </Alert>
           ) : (
-            <Table responsive hover>
+            <section className="market-list-section">
+              <div className="market-list-heading">
+                <h2>Market listings</h2>
+                <p>Live prices, market caps, and recent trends</p>
+              </div>
+            <Table responsive hover className="market-table">
               <thead>
                 <tr>
                   <th scope="col">#</th>
@@ -247,9 +335,9 @@ function DashboardPage() {
               </thead>
               <tbody>
                 {visibleCoins.map((coin) => (
-                  <tr key={coin.id}>
-                    <td>{coin.market_cap_rank}</td>
-                    <td>
+                  <tr key={coin.id} className="market-row">
+                    <td data-label="#"> {coin.market_cap_rank}</td>
+                    <td data-label="Coin">
                       <Link to={`/coin/${coin.id}`}>
                         <img
                           src={coin.image}
@@ -261,20 +349,27 @@ function DashboardPage() {
                         {coin.name} ({coin.symbol.toUpperCase()})
                       </Link>
                     </td>
-                    <td>{formatCurrency(coin.current_price)}</td>
+                    <td data-label="Price" className="market-value">
+                      {formatCurrency(coin.current_price)}
+                    </td>
                     <td
+                      data-label="24h change"
                       className={
-                        coin.price_change_percentage_24h > 0
-                          ? 'text-success'
-                          : coin.price_change_percentage_24h < 0
-                            ? 'text-danger'
-                            : 'text-body-secondary'
+                        `market-number ${
+                          coin.price_change_percentage_24h > 0
+                            ? 'text-success'
+                            : coin.price_change_percentage_24h < 0
+                              ? 'text-danger'
+                              : 'text-warning'
+                        }`
                       }
                     >
                       {formatPercentage(coin.price_change_percentage_24h)}
                     </td>
-                    <td>{formatMarketCap(coin.market_cap)}</td>
-                    <td>
+                    <td data-label="Market cap" className="market-value">
+                      {formatMarketCap(coin.market_cap)}
+                    </td>
+                    <td data-label="7d trend">
                       <MiniChart
                         prices={coin.sparkline_in_7d?.price}
                         isPositive={
@@ -288,6 +383,7 @@ function DashboardPage() {
                 ))}
               </tbody>
             </Table>
+            </section>
           )}
         </>
       )}
