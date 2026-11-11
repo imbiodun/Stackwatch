@@ -25,6 +25,12 @@ Stackwatch is a responsive cryptocurrency market and portfolio tracker.
 - react-hot-toast
 - CoinGecko API
 
+## Screenshot
+
+![Stackwatch dashboard](./docs/screenshots/dashboard.png)
+![Stackwatch Portfolio](./docs/screenshots/Portfolio.png)
+![Stackwatch Coin Information page](./docs/screenshots/Coininfo.png)
+
 ## Getting started
 
 ### Requirements
